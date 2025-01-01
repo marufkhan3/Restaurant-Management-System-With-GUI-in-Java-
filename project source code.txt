@@ -1,0 +1,333 @@
+//mainclass
+
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        RestaurantManagementSystem rms = new RestaurantManagementSystem();
+        Scanner scanner = new Scanner(System.in);
+
+        // Adding sample data
+        rms.addMenuItem(1, "Chicken Biriyani", 200.00);
+        rms.addMenuItem(2, "Coca-Cola", 30.00);
+        rms.addMenuItem(3, "Beef Khichuri", 150.00);
+        rms.addMenuItem(4, "Beef Polao", 170.00);
+        rms.addMenuItem(5, "Mineral Water", 20.00);
+        rms.addTable(1);
+        rms.addTable(2);
+
+        boolean adminRegistered = false;
+
+        while (true) {
+            System.out.println("\nRestaurant Management System");
+            System.out.println("1. Register Admin");
+            System.out.println("2. Admin Panel");
+            System.out.println("3. Customer Panel");
+            System.out.println("4. Exit");
+            System.out.print("Enter your choice: ");
+            int choice = scanner.nextInt();
+
+            if (choice == 1) {
+                System.out.print("Enter new username: ");
+                String username = scanner.next();
+                System.out.print("Enter new password: ");
+                String password = scanner.next();
+                adminRegistered = rms.registerAdmin(username, password);
+            } else if (choice == 2) {
+                if (!adminRegistered) {
+                    System.out.println("Admin must register first!");
+                    continue;
+                }
+                System.out.print("Enter Username: ");
+                String username = scanner.next();
+                System.out.print("Enter Password: ");
+                String password = scanner.next();
+
+                if (rms.adminLogin(username, password)) {
+                    while (true) {
+                        System.out.println("\nAdmin Panel");
+                        System.out.println("1. Add Menu Item");
+                        System.out.println("2. View Sales");
+                        System.out.println("3. Add Table");
+                        System.out.println("4. View Active Orders");
+                        System.out.println("5. Logout");
+                        System.out.print("Enter your choice: ");
+                        int adminChoice = scanner.nextInt();
+
+                        if (adminChoice == 1) {
+                            System.out.print("Enter Item ID: ");
+                            int id = scanner.nextInt();
+                            scanner.nextLine();
+                            System.out.print("Enter Item Name: ");
+                            String name = scanner.nextLine();
+                            System.out.print("Enter Item Price: ");
+                            double price = scanner.nextDouble();
+                            rms.addMenuItem(id, name, price);
+                            System.out.println("Item added successfully.");
+                        } else if (adminChoice == 2) {
+                            rms.viewSales();
+                        } else if (adminChoice == 3) {
+                            System.out.print("Enter Table ID: ");
+                            int tableId = scanner.nextInt();
+                            rms.addTable(tableId);
+                            System.out.println("Table added successfully.");
+                        } else if (adminChoice == 4) {
+                            rms.viewOrders();
+                        } else if (adminChoice == 5) {
+                            break; // Logout
+                        }
+                    }
+                }
+            } else if (choice == 3) {
+                while (true) {
+                    System.out.println("\nCustomer Panel");
+                    System.out.println("1. View Menu");
+                    System.out.println("2. Reserve Table and Order");
+                    System.out.println("3. Cancel Order");
+                    System.out.println("4. Back to Main Menu");
+                    System.out.print("Enter your choice: ");
+                    int customerChoice = scanner.nextInt();
+
+                    if (customerChoice == 1) {
+                        rms.viewMenu();
+                    } else if (customerChoice == 2) {
+                        rms.viewTables();
+                        System.out.print("Enter a table ID to reserve: ");
+                        int tableId = scanner.nextInt();
+                        if (rms.assignTable(tableId)) {
+                            System.out.println("Table reserved successfully.");
+                            System.out.println("Enter item IDs (comma-separated): ");
+                            scanner.nextLine();
+                            String[] itemIds = scanner.nextLine().split(",");
+                            Order order = new Order();
+                            for (String itemId : itemIds) {
+                                for (MenuItem menuItem : rms.getMenu()) {
+                                    if (menuItem.getId() == Integer.parseInt(itemId)) {
+                                        order.addItem(menuItem);
+                                    }
+                                }
+                            }
+                            rms.createOrder(order);
+                            System.out.println("Order placed! Your Order ID: " + order.getOrderId());
+                        } else {
+                            System.out.println("No available table.");
+                        }
+                    } else if (customerChoice == 3) {
+                        System.out.print("Enter your Order ID to cancel: ");
+                        scanner.nextLine(); // Consume leftover newline
+                        String orderId = scanner.nextLine();
+                        if (!rms.cancelOrder(orderId)) {
+                            System.out.println("Invalid Order ID. Cancellation failed.");
+                        }
+                    } else if (customerChoice == 4) {
+                        break; // Back to main menu
+                    }
+                }
+            } else if (choice == 4) {
+                System.out.println("Exiting... Thank you!");
+                break;
+            }
+        }
+    }
+}
+
+
+\\menuiteam
+
+public class MenuItem {
+    private int id;
+    private String name;
+    private double price;
+
+    public MenuItem(int id, String name, double price) {
+        this.id = id;
+        this.name = name;
+        this.price = price;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    @Override
+    public String toString() {
+        return id + ". " + name + " - " + price + "Taka";
+    }
+}
+
+
+
+//Table
+public class Table {
+    private int id;
+    private boolean occupied;
+
+    public Table(int id) {
+        this.id = id;
+        this.occupied = false;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public boolean isOccupied() {
+        return occupied;
+    }
+
+    public void setOccupied(boolean occupied) {
+        this.occupied = occupied;
+    }
+
+    @Override
+    public String toString() {
+        return "Table ID: " + id + (occupied ? " (Occupied)" : " (Available)");
+    }
+}
+
+
+//Order
+
+import java.util.ArrayList;
+import java.util.UUID;
+
+public class Order {
+    private String orderId;
+    private ArrayList<MenuItem> items;
+
+    public Order() {
+        this.orderId = UUID.randomUUID().toString();
+        this.items = new ArrayList<>();
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void addItem(MenuItem item) {
+        items.add(item);
+    }
+
+    public double calculateTotal() {
+        double total = 0;
+        for (MenuItem item : items) {
+            total += item.getPrice();
+        }
+        return total;
+    }
+
+    @Override
+    public String toString() {
+        return "Order ID: " + orderId + ", Items: " + items + ", Total: " + calculateTotal() + "Taka";
+    }
+}
+
+
+\\RMS
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.UUID;
+
+public class RestaurantManagementSystem {
+    private HashMap<String, String> adminCredentials = new HashMap<>();
+    private ArrayList<MenuItem> menu = new ArrayList<>();
+    private ArrayList<Table> tables = new ArrayList<>();
+    private ArrayList<Order> orders = new ArrayList<>();
+    private double dailySales = 0;
+
+    public boolean registerAdmin(String username, String password) {
+        if (adminCredentials.containsKey(username)) {
+            System.out.println("Admin already registered.");
+            return false;
+        }
+        adminCredentials.put(username, password);
+        System.out.println("Admin registered successfully.");
+        return true;
+    }
+
+    public boolean adminLogin(String username, String password) {
+        if (adminCredentials.containsKey(username) && adminCredentials.get(username).equals(password)) {
+            System.out.println("Login successful.");
+            return true;
+        }
+        System.out.println("Invalid credentials.");
+        return false;
+    }
+
+    public void addMenuItem(int id, String name, double price) {
+        menu.add(new MenuItem(id, name, price));
+    }
+
+    public void viewMenu() {
+        System.out.println("\nMenu:");
+        for (MenuItem item : menu) {
+            System.out.println(item);
+        }
+    }
+
+    public ArrayList<MenuItem> getMenu() {
+        return menu;
+    }
+
+    public void addTable(int id) {
+        tables.add(new Table(id));
+    }
+
+    public void viewTables() {
+        System.out.println("\nAvailable Tables:");
+        for (Table table : tables) {
+            if (!table.isOccupied()) {
+                System.out.println(table);
+            }
+        }
+    }
+
+    public boolean assignTable(int tableId) {
+        for (Table table : tables) {
+            if (table.getId() == tableId && !table.isOccupied()) {
+                table.setOccupied(true);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void createOrder(Order order) {
+        orders.add(order);
+        dailySales += order.calculateTotal();
+    }
+
+    public boolean cancelOrder(String orderId) {
+        for (Order order : orders) {
+            if (order.getOrderId().equals(orderId.trim())) {
+                dailySales -= order.calculateTotal();
+                orders.remove(order);
+                System.out.println("Order canceled successfully.");
+                return true;
+            }
+        }
+        System.out.println("Order not found.");
+        return false;
+    }
+
+    public void viewOrders() {
+        System.out.println("\nActive Orders:");
+        for (Order order : orders) {
+            System.out.println(order);
+        }
+    }
+
+    public void viewSales() {
+        System.out.println("Daily Sales: " + dailySales + "Taka");
+    }
+}
+
